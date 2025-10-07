@@ -10,11 +10,25 @@ app.get("/pdf", async (req, res) => {
   try {
     const browser = await puppeteer.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--ignore-certificate-errors",
+      ],
     });
 
     const page = await browser.newPage();
-    await page.goto(url, { waitUntil: "networkidle0", timeout: 60000 });
+
+    // 🔹 התעלמות משגיאות HTTPS
+    await page.setJavaScriptEnabled(true);
+    await page.setExtraHTTPHeaders({
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
+    });
+
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 180000 });
+
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
@@ -24,13 +38,13 @@ app.get("/pdf", async (req, res) => {
 
     res.set({
       "Content-Type": "application/pdf",
-      "Content-Disposition": "inline; filename=catalog.pdf",
+      "Content-Disposition": 'inline; filename="catalog.pdf"',
     });
     res.send(pdf);
   } catch (err) {
-    console.error(err);
+    console.error("❌ Error generating PDF:", err);
     res.status(500).send("Error generating PDF");
   }
 });
 
-app.listen(3000, () => console.log("✅ PDF service running on port 3000"));
+app.listen(3000, () => console.log("🚀 PDF service running on port 3000"));
